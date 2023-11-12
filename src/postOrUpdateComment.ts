@@ -51,7 +51,7 @@ export async function getChangedFilesByPullRequestNumber(pullRequestNumber: numb
 
   const replacedPathRegex = new RegExp(`^${originalPath}`);
   const prChangedFilesWithCustomizedPath = prChangedFiles.map((filePath) => {
-    return filePath.replace(replacedPathRegex, replacedPath);
+    return filePath.replace(replacedPathRegex, replacedPath).replace(".md", ".html");
   });
 
   return prChangedFilesWithCustomizedPath;
