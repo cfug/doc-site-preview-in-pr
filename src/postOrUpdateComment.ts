@@ -28,7 +28,7 @@ import { context, getOctokit } from "@actions/github";
 
 // Get inputs from workflow file
 const showDetailedUrls = getInput("showDetailedUrls");
-const fileExtension = getInput("fileExtension") || "md, html";
+const fileExtension = getInput("fileExtensionFilter") || "md, html";
 const originalPath = getInput("originalPath") || "src";
 const replacedPath = getInput("replacedPath") || "docs";
 
