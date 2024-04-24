@@ -30,7 +30,7 @@ import { context, getOctokit } from "@actions/github";
 const showDetailedUrls = getInput("showDetailedUrls");
 const fileExtension = getInput("fileExtensionFilter") || "md, html";
 const originalPath = getInput("originalPath") || "src";
-const replacedPath = getInput("replacedPath") || "docs";
+const replacedPath = getInput("replacedPath") || "/";
 
 const BOT_SIGNATURE = "[本工具](https://github.com/cfug/doc-site-preview-in-pr) 修改自 [部署至 🔥 Firebase Hosting](https://github.com/marketplace/actions/deploy-to-firebase-hosting)。";
 
