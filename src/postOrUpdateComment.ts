@@ -28,7 +28,8 @@ const fileExtension = getInput("fileExtensionFilter") || "md, html";
 const originalPath = getInput("originalPath") || "src";
 const replacedPath = getInput("replacedPath") || "/";
 
-const BOT_SIGNATURE = "[本工具](https://github.com/cfug/doc-site-preview-in-pr) 修改自 [部署至 🔥 Firebase Hosting](https://github.com/marketplace/actions/deploy-to-firebase-hosting)。";
+const BOT_SIGNATURE =
+  "[本工具](https://github.com/cfug/doc-site-preview-in-pr) 修改自 [部署至 🔥 Firebase Hosting](https://github.com/marketplace/actions/deploy-to-firebase-hosting)。";
 
 /**
  * 把仓库相对路径(如 `sites/docs/src/content/foo/bar.md`)映射为预览站点实际服务的路径。
@@ -47,14 +48,16 @@ export function toServedUrlPath(
   return `${replacedPath}${stripped}`.replace(/\.md$/, ".html");
 }
 
-export async function getChangedFilesByPullRequestNumber(pullRequestNumber: number): Promise<string[]> {
+export async function getChangedFilesByPullRequestNumber(
+  pullRequestNumber: number
+): Promise<string[]> {
   const token = process.env.GITHUB_TOKEN || getInput("repoToken");
   const octokit = token ? getOctokit(token) : undefined;
   const { data: files } = await octokit.rest.pulls.listFiles({
     ...context.repo,
     pull_number: pullRequestNumber,
   });
-  const fileExtensions = fileExtension.split(",").map((ext) => ext.trim());  // 过滤空格
+  const fileExtensions = fileExtension.split(",").map((ext) => ext.trim()); // 过滤空格
   const prChangedFiles = files
     .filter((file) => {
       const extension = file.filename.split(".").pop();
@@ -110,7 +113,9 @@ export function getChannelDeploySuccessComment(
     })
     .join("\n");
 
-  const expireTimeInChina = new Date(expireTime).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
+  const expireTimeInChina = new Date(expireTime).toLocaleString("zh-CN", {
+    timeZone: "Asia/Shanghai",
+  });
   const formattedExpireTime = `${expireTimeInChina} (北京时间)`;
 
   let commentContents = "";
@@ -129,7 +134,7 @@ ${changedFilesWithUrls}
 ${BOT_SIGNATURE}
   
 <sub>Sign: ${deploySignature}</sub>`;
-  
+
   if (showDetailedUrls == "false") {
     // Feature Not Enabled
     commentContents = `
@@ -141,7 +146,7 @@ ${urlList}
     
 ${BOT_SIGNATURE}
     
-<sub>Sign: ${deploySignature}</sub>`
+<sub>Sign: ${deploySignature}</sub>`;
   }
 
   return commentContents.trim();
@@ -160,9 +165,15 @@ export async function postChannelSuccessComment(
   const pullRequest = context.payload.pull_request;
   const pullRequestNumber = pullRequest.number;
 
-  const changedFiles = await getChangedFilesByPullRequestNumber(pullRequestNumber);
+  const changedFiles = await getChangedFilesByPullRequestNumber(
+    pullRequestNumber
+  );
 
-  const commentMarkdown = getChannelDeploySuccessComment(result, commit, changedFiles);
+  const commentMarkdown = getChannelDeploySuccessComment(
+    result,
+    commit,
+    changedFiles
+  );
 
   const comment = {
     ...commentInfo,
