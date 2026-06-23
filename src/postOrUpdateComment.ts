@@ -17,11 +17,7 @@
 import { endGroup, startGroup } from "@actions/core";
 import type { GitHub } from "@actions/github/lib/utils";
 import { Context } from "@actions/github/lib/context";
-import {
-  ChannelSuccessResult,
-  interpretChannelDeployResult,
-  ErrorResult,
-} from "./deploy";
+import { ChannelSuccessResult, interpretChannelDeployResult } from "./deploy";
 import { createDeploySignature } from "./hash";
 import { getInput } from "@actions/core";
 import { context, getOctokit } from "@actions/github";
@@ -103,12 +99,12 @@ export function getChannelDeploySuccessComment(
 查看该 PR 的预览 URL (已更新至 commit: ${commit})：
   
 ${urlList}
-  
+
 ### 查看本 PR 贡献的链接预览:
 ${changedFilesWithUrls}
-  
+
 <sub>(页面失效时间 ${formattedExpireTime})</sub>
-  
+
 ${BOT_SIGNATURE}
   
 <sub>Sign: ${deploySignature}</sub>`;
