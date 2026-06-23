@@ -17,11 +17,7 @@
 import { endGroup, startGroup } from "@actions/core";
 import type { GitHub } from "@actions/github/lib/utils";
 import { Context } from "@actions/github/lib/context";
-import {
-  ChannelSuccessResult,
-  interpretChannelDeployResult,
-  ErrorResult,
-} from "./deploy";
+import { ChannelSuccessResult, interpretChannelDeployResult } from "./deploy";
 import { createDeploySignature } from "./hash";
 import { getInput } from "@actions/core";
 import { context, getOctokit } from "@actions/github";
@@ -32,16 +28,36 @@ const fileExtension = getInput("fileExtensionFilter") || "md, html";
 const originalPath = getInput("originalPath") || "src";
 const replacedPath = getInput("replacedPath") || "/";
 
-const BOT_SIGNATURE = "[本工具](https://github.com/cfug/doc-site-preview-in-pr) 修改自 [部署至 🔥 Firebase Hosting](https://github.com/marketplace/actions/deploy-to-firebase-hosting)。";
+const BOT_SIGNATURE =
+  "[本工具](https://github.com/cfug/doc-site-preview-in-pr) 修改自 [部署至 🔥 Firebase Hosting](https://github.com/marketplace/actions/deploy-to-firebase-hosting)。";
 
-export async function getChangedFilesByPullRequestNumber(pullRequestNumber: number): Promise<string[]> {
+/**
+ * 把仓库相对路径(如 `sites/docs/src/content/foo/bar.md`)映射为预览站点实际服务的路径。
+ * GitHub API 返回的是完整仓库相对路径,因此这里截掉 `originalPath`(如 `src/content/`)及其
+ * 之前的一切前缀,拼上 `replacedPath`(如 `/`),并把结尾的 `.md` 改写为 `.html`。
+ * 注意:不再用 `^` 锚定 —— 真实路径前面还有 `sites/docs/` 等前缀,锚定会导致永不匹配。
+ */
+export function toServedUrlPath(
+  filePath: string,
+  originalPath: string,
+  replacedPath: string
+): string {
+  const idx = filePath.indexOf(originalPath);
+  const stripped =
+    idx >= 0 ? filePath.slice(idx + originalPath.length) : filePath;
+  return `${replacedPath}${stripped}`.replace(/\.md$/, ".html");
+}
+
+export async function getChangedFilesByPullRequestNumber(
+  pullRequestNumber: number
+): Promise<string[]> {
   const token = process.env.GITHUB_TOKEN || getInput("repoToken");
   const octokit = token ? getOctokit(token) : undefined;
   const { data: files } = await octokit.rest.pulls.listFiles({
     ...context.repo,
     pull_number: pullRequestNumber,
   });
-  const fileExtensions = fileExtension.split(",").map((ext) => ext.trim());  // 过滤空格
+  const fileExtensions = fileExtension.split(",").map((ext) => ext.trim()); // 过滤空格
   const prChangedFiles = files
     .filter((file) => {
       const extension = file.filename.split(".").pop();
@@ -49,12 +65,9 @@ export async function getChangedFilesByPullRequestNumber(pullRequestNumber: numb
     })
     .map((file) => file.filename);
 
-  const replacedPathRegex = new RegExp(`^${originalPath}`);
-  const prChangedFilesWithCustomizedPath = prChangedFiles.map((filePath) => {
-    return filePath.replace(replacedPathRegex, replacedPath).replace(".md", ".html");
-  });
-
-  return prChangedFilesWithCustomizedPath;
+  return prChangedFiles.map((filePath) =>
+    toServedUrlPath(filePath, originalPath, replacedPath)
+  );
 }
 
 export function createBotCommentIdentifier(signature: string) {
@@ -89,11 +102,20 @@ export function getChannelDeploySuccessComment(
   const urlList = getURLsFromChannelDeployResult(result);
   const { expireTime } = interpretChannelDeployResult(result);
 
-  const changedFilesWithUrls = changedFiles.map((file) => {
-    return `[${urlList}${file}](${urlList}${file})`;
-  }).join("\n");
+  // 用主预览 URL 作为 base 并去掉末尾斜杠;文件路径补一个前导斜杠,
+  // 保证 base 与 path 之间恰好一个 `/`(此前 `${urlList}${file}` 会拼出 `.web.appsites/...`)。
+  const baseUrl = (urlList[0] ?? "").replace(/\/+$/, "");
+  const changedFilesWithUrls = changedFiles
+    .map((file) => {
+      const path = file.startsWith("/") ? file : `/${file}`;
+      const url = `${baseUrl}${path}`;
+      return `[${url}](${url})`;
+    })
+    .join("\n");
 
-  const expireTimeInChina = new Date(expireTime).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
+  const expireTimeInChina = new Date(expireTime).toLocaleString("zh-CN", {
+    timeZone: "Asia/Shanghai",
+  });
   const formattedExpireTime = `${expireTimeInChina} (北京时间)`;
 
   let commentContents = "";
@@ -103,16 +125,16 @@ export function getChannelDeploySuccessComment(
 查看该 PR 的预览 URL (已更新至 commit: ${commit})：
   
 ${urlList}
-  
+
 ### 查看本 PR 贡献的链接预览:
 ${changedFilesWithUrls}
-  
+
 <sub>(页面失效时间 ${formattedExpireTime})</sub>
-  
+
 ${BOT_SIGNATURE}
   
 <sub>Sign: ${deploySignature}</sub>`;
-  
+
   if (showDetailedUrls == "false") {
     // Feature Not Enabled
     commentContents = `
@@ -124,7 +146,7 @@ ${urlList}
     
 ${BOT_SIGNATURE}
     
-<sub>Sign: ${deploySignature}</sub>`
+<sub>Sign: ${deploySignature}</sub>`;
   }
 
   return commentContents.trim();
@@ -143,9 +165,15 @@ export async function postChannelSuccessComment(
   const pullRequest = context.payload.pull_request;
   const pullRequestNumber = pullRequest.number;
 
-  const changedFiles = await getChangedFilesByPullRequestNumber(pullRequestNumber);
+  const changedFiles = await getChangedFilesByPullRequestNumber(
+    pullRequestNumber
+  );
 
-  const commentMarkdown = getChannelDeploySuccessComment(result, commit, changedFiles);
+  const commentMarkdown = getChannelDeploySuccessComment(
+    result,
+    commit,
+    changedFiles
+  );
 
   const comment = {
     ...commentInfo,
